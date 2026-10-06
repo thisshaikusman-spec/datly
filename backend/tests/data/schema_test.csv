@@ -1,0 +1,6 @@
+id,name,age,city,price,is_active,description,created_at
+1001,Alice,30,New York,199.99,True,Great product,2026-01-01 10:00:00
+1002,Bob,25,Los Angeles,99.50,False,Not bad,2026-01-02 12:30:00
+1003,Charlie,35,Chicago,299.00,True,Excellent quality,2026-01-03 14:15:00
+1004,David,28,New York,150.00,True,Very good,2026-01-04 09:45:00
+1005,Eve,40,San Francisco,450.75,False,Terrible,2026-01-05 16:20:00

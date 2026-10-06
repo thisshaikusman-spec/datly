@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+pydantic-settings
+pandas
+numpy
+scipy
+openpyxl
+pytest
+pytest-asyncio
+ruff
+black
+python-dotenv
+httpx
+python-multipart
+openai
+sarvamai

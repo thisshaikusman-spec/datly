@@ -1,0 +1,6 @@
+date,customer_id,product,quantity,revenue
+2026-01-01,C101,Laptop,5,250000
+2026-01-02,C102,Phone,10,180000
+2026-01-03,C101,Phone,8,144000
+2026-01-04,C103,Laptop,4,200000
+2026-01-05,C102,Laptop,7,350000

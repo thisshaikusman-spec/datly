@@ -1,0 +1,12 @@
+{
+  "include": [
+    "app",
+    "tests"
+  ],
+  "extraPaths": [
+    "external_modules/datly_analytics_module",
+    "."
+  ],
+  "venvPath": ".",
+  "venv": ".venv"
+}

@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.pyright]
+extraPaths = [
+    "external_modules/datly_analytics_module",
+    "."
+]
