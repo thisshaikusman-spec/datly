@@ -16,4 +16,3 @@ python-multipart
 openai
 sarvamai
 pyarrow
--e ./external_modules/datly_analytics_module
