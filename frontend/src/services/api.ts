@@ -63,7 +63,31 @@ export interface AnalysisResponse {
   clarificationOptions?: ClarificationOption[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+function resolveApiBase(): string {
+  const envUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+
+  if (envUrl) {
+    let normalized = envUrl.replace(/\/+$/, '');
+    if (!normalized.endsWith('/api/v1')) {
+      if (normalized.endsWith('/api')) {
+        normalized = `${normalized}/v1`;
+      } else {
+        normalized = `${normalized}/api/v1`;
+      }
+    }
+    return normalized;
+  }
+
+  // In production (e.g. Vercel), default to the live Render backend URL
+  if (import.meta.env.PROD) {
+    return 'https://datly-2v3a.onrender.com/api/v1';
+  }
+
+  // In development, use relative '/api/v1' which is proxied by Vite to localhost:8000
+  return '/api/v1';
+}
+
+const API_BASE = resolveApiBase();
 
 export function getStoredWorkspaceId(): string | null {
   try {

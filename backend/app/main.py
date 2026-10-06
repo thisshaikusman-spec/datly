@@ -33,13 +33,15 @@ raw_origins = os.getenv(
     "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
 )
 allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+is_wildcard = "*" in allowed_origins
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"] if is_wildcard else allowed_origins,
+    allow_credentials=False if is_wildcard else True,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app" if not is_wildcard else None,
 )
 
 app.include_router(api_router, prefix="/api/v1")
