@@ -36,6 +36,7 @@ def synthesize_speech(text: str) -> bytes:
             speaker=settings.SARVAM_TTS_SPEAKER,
             speech_sample_rate=settings.SARVAM_TTS_SAMPLE_RATE,
             model=settings.SARVAM_TTS_MODEL,
+            pace=1.18,
         )
         # response should be TextToSpeechResponse with audios field containing base64 string
         audio_b64 = None

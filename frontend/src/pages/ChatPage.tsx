@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowUp, Sparkles, Mic, Square, X, Plus, CheckSquare, Square as EmptySquare, Database } from 'lucide-react';
+import { ArrowUp, Sparkles, Mic, Square, X, Plus, CheckSquare, Square as EmptySquare, Database, Volume2, VolumeX } from 'lucide-react';
 import { DatlyLogo } from '../components/DatlyLogo';
 import { WaveBackground } from '../components/WaveBackground';
 import { AttachmentButton } from '../components/chat/AttachmentButton';
@@ -37,6 +37,7 @@ interface Message {
   filename?: string;
   analysis?: AnalysisResponse;
   audioUrl?: string;          // TTS playback URL for this answer
+  autoPlayAudio?: boolean;    // Auto-speak voice response flag
   insight?: string;
   error?: string;
   isLoading?: boolean;
@@ -54,6 +55,7 @@ export function ChatPage() {
   const location = useLocation();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [autoSpeak, setAutoSpeak] = useState(true);
   const [_nextId, setNextId] = useState(1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -320,13 +322,19 @@ export function ChatPage() {
             const allTargetIds = Array.from(new Set([...selectedDatasetIdsRef.current, ...newlyUploaded.map(d => d.id)]));
             const response = await analyzeWorkspace(wsId, trimmed, allTargetIds);
             let audioUrl: string | undefined = undefined;
-            if (isVoice && response.success && response.answer) {
+            if ((isVoice || autoSpeak) && response.success && response.answer) {
               try {
                 audioUrl = await synthesizeSpeech(response.answer);
               } catch {}
             }
             setMessages(prev => prev.map(m =>
-              m.id === qAssistantMsgId ? { id: m.id, role: 'assistant', analysis: response, audioUrl } : m
+              m.id === qAssistantMsgId ? {
+                id: m.id,
+                role: 'assistant',
+                analysis: response,
+                audioUrl,
+                autoPlayAudio: isVoice || autoSpeak
+              } : m
             ));
           } catch (err: any) {
             setMessages(prev => prev.map(m =>
@@ -371,14 +379,20 @@ export function ChatPage() {
       }
 
       let audioUrl: string | undefined = undefined;
-      if (isVoice && response.success && response.answer) {
+      if ((isVoice || autoSpeak) && response.success && response.answer) {
         try {
           audioUrl = await synthesizeSpeech(response.answer);
         } catch {}
       }
 
       setMessages(prev => prev.map(m =>
-        m.id === assistantMsgId ? { id: m.id, role: 'assistant', analysis: response, audioUrl } : m
+        m.id === assistantMsgId ? {
+          id: m.id,
+          role: 'assistant',
+          analysis: response,
+          audioUrl,
+          autoPlayAudio: isVoice || autoSpeak
+        } : m
       ));
     } catch (err: any) {
       console.error('[ANALYSIS] Error:', err);
@@ -643,6 +657,7 @@ export function ChatPage() {
                       <AnswerCard
                         analysis={msg.analysis}
                         audioUrl={msg.audioUrl}
+                        autoPlay={msg.autoPlayAudio}
                         onClarify={(opt) => {
                           setInput(opt.value || opt.label);
                           setTimeout(() => document.getElementById('chat-send-btn')?.click(), 100);
@@ -830,6 +845,21 @@ export function ChatPage() {
                       ? <Square size={14} strokeWidth={2.5} className="fill-red-400 text-red-400" />
                       : <Mic size={16} strokeWidth={2} />
                     }
+                  </button>
+
+                  {/* Auto-Speak Answers Toggle button */}
+                  <button
+                    type="button"
+                    onClick={() => setAutoSpeak(!autoSpeak)}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                      autoSpeak
+                        ? 'text-[#a78bfa] bg-[#a78bfa]/15 ring-1 ring-[#a78bfa]/30 shadow-[0_0_8px_rgba(167,139,250,0.2)]'
+                        : 'text-white/30 hover:text-white/60 hover:bg-white/5'
+                    }`}
+                    title={autoSpeak ? "Voice Auto-Reply: ON (answers spoken aloud)" : "Voice Auto-Reply: OFF (muted)"}
+                    aria-label={autoSpeak ? "Voice Auto-Reply: ON" : "Voice Auto-Reply: OFF"}
+                  >
+                    {autoSpeak ? <Volume2 size={16} strokeWidth={2} /> : <VolumeX size={16} strokeWidth={2} />}
                   </button>
 
                   {/* Send button */}

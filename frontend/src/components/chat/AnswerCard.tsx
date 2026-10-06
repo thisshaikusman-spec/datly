@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Volume2, Pause } from 'lucide-react';
 import type { AnalysisResponse, ClarificationOption } from '../../services/api';
 import { VerificationDetails } from './VerificationDetails';
@@ -8,30 +8,101 @@ import { ClarificationCard } from './ClarificationCard';
 interface AnswerCardProps {
   analysis: AnalysisResponse;
   audioUrl?: string;            // Optional TTS audio URL from backend
+  autoPlay?: boolean;           // Autoplay voice response
   onClarify?: (option: ClarificationOption) => void;
 }
 
-export function AnswerCard({ analysis, audioUrl, onClarify }: AnswerCardProps) {
+export function AnswerCard({ analysis, audioUrl, autoPlay, onClarify }: AnswerCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState<number>(1.2); // Fast, snappy default (1.2x)
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasAutoPlayedRef = useRef(false);
 
-  const handlePlayPause = () => {
-    if (!audioUrl) return;
-
-    if (!audioRef.current) {
-      audioRef.current = new Audio(audioUrl);
-      audioRef.current.onended = () => setIsPlaying(false);
-      audioRef.current.onerror = () => setIsPlaying(false);
-    }
-
-    if (isPlaying) {
+  const stopAudio = () => {
+    if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlaying(false);
+  };
+
+  const fallbackSpeak = (text: string, rate: number) => {
+    if (!('speechSynthesis' in window) || !text) {
       setIsPlaying(false);
-    } else {
-      audioRef.current.play().catch(() => setIsPlaying(false));
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const cleanText = text.replace(/[*_#`]/g, '').trim();
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = rate;
+      utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => setIsPlaying(false);
       setIsPlaying(true);
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setIsPlaying(false);
     }
   };
+
+  const playAudio = (rate = speed) => {
+    stopAudio();
+
+    if (audioUrl) {
+      try {
+        const audio = new Audio(audioUrl);
+        audio.playbackRate = rate;
+        audioRef.current = audio;
+        audio.onended = () => setIsPlaying(false);
+        audio.onerror = () => {
+          fallbackSpeak(analysis.answer, rate);
+        };
+        audio.play().then(() => setIsPlaying(true)).catch(() => {
+          fallbackSpeak(analysis.answer, rate);
+        });
+      } catch {
+        fallbackSpeak(analysis.answer, rate);
+      }
+    } else if (analysis.answer) {
+      fallbackSpeak(analysis.answer, rate);
+    }
+  };
+
+  const handlePlayPause = () => {
+    if (isPlaying) {
+      stopAudio();
+    } else {
+      playAudio(speed);
+    }
+  };
+
+  const handleSpeedToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextSpeed = speed === 1.0 ? 1.2 : speed === 1.2 ? 1.4 : 1.0;
+    setSpeed(nextSpeed);
+    if (isPlaying && audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed;
+    }
+  };
+
+  useEffect(() => {
+    if (autoPlay && !hasAutoPlayedRef.current && analysis.answer) {
+      hasAutoPlayedRef.current = true;
+      const timer = setTimeout(() => {
+        playAudio(1.2);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [autoPlay, audioUrl, analysis.answer]);
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, []);
 
   if (!analysis.success) {
     return (
@@ -53,29 +124,51 @@ export function AnswerCard({ analysis, audioUrl, onClarify }: AnswerCardProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Answer text + TTS play button */}
+      {/* Answer text + TTS Voice playback controls */}
       <div className="flex items-start gap-3">
         <div className="text-white/90 text-sm leading-relaxed flex-1">
           {analysis.answer}
         </div>
 
-        {/* TTS Play / Pause button — only renders when voice audio is available */}
-        {audioUrl && (
+        {/* Voice Playback Pill */}
+        <div className="shrink-0 flex items-center gap-1.5 bg-white/4 border border-white/8 rounded-full px-2 py-1 transition-all duration-200">
           <button
             onClick={handlePlayPause}
-            title={isPlaying ? 'Pause voice response' : 'Play voice response'}
-            className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 mt-0.5 ${
+            title={isPlaying ? 'Pause voice answer' : 'Play answer as speech'}
+            className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
               isPlaying
-                ? 'text-[#a78bfa] bg-[#a78bfa]/15 ring-1 ring-[#a78bfa]/30'
-                : 'text-white/35 hover:text-[#a78bfa] hover:bg-[#a78bfa]/10'
+                ? 'text-[#a78bfa]'
+                : 'text-white/40 hover:text-white/80'
             }`}
           >
-            {isPlaying
-              ? <Pause size={13} strokeWidth={2.5} />
-              : <Volume2 size={13} strokeWidth={2} />
-            }
+            {isPlaying ? (
+              <>
+                <Pause size={12} strokeWidth={2.5} className="text-[#a78bfa]" />
+                {/* Animated wave bars */}
+                <span className="flex items-end gap-0.5 h-3">
+                  <span className="w-0.5 h-3 bg-[#a78bfa] rounded-full animate-bounce [animation-delay:0ms]" />
+                  <span className="w-0.5 h-2 bg-[#a78bfa] rounded-full animate-bounce [animation-delay:150ms]" />
+                  <span className="w-0.5 h-3.5 bg-[#a78bfa] rounded-full animate-bounce [animation-delay:300ms]" />
+                </span>
+                <span className="text-[11px] text-[#a78bfa] font-mono">Speaking</span>
+              </>
+            ) : (
+              <>
+                <Volume2 size={12} strokeWidth={2} />
+                <span className="text-[11px]">Listen</span>
+              </>
+            )}
           </button>
-        )}
+
+          {/* Speed Toggle */}
+          <button
+            onClick={handleSpeedToggle}
+            title="Toggle speech playback speed (1x, 1.2x, 1.4x)"
+            className="text-[10px] font-mono font-semibold px-1 py-0.5 rounded bg-white/6 text-white/50 hover:text-white/90 hover:bg-white/10 transition-colors ml-0.5"
+          >
+            {speed}x
+          </button>
+        </div>
       </div>
 
       {(analysis.visualizations && analysis.visualizations.length > 0) ? (
