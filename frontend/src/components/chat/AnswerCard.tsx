@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Volume2, Pause } from 'lucide-react';
 import type { AnalysisResponse, ClarificationOption } from '../../services/api';
+import { playSpeech, stopAudio, primeAudio } from '../../services/audioPlayer';
 import { VerificationDetails } from './VerificationDetails';
 import { ChartRenderer } from './ChartRenderer';
 import { ClarificationCard } from './ClarificationCard';
@@ -14,90 +15,51 @@ interface AnswerCardProps {
 
 export function AnswerCard({ analysis, audioUrl, autoPlay, onClarify }: AnswerCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState<number>(1.2); // Fast, snappy default (1.2x)
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [speed, setSpeed] = useState<number>(1.25); // Fast, crisp default (1.25x)
   const hasAutoPlayedRef = useRef(false);
 
-  const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsPlaying(false);
-  };
-
-  const fallbackSpeak = (text: string, rate: number) => {
-    if (!('speechSynthesis' in window) || !text) {
-      setIsPlaying(false);
-      return;
-    }
-    try {
-      window.speechSynthesis.cancel();
-      const cleanText = text.replace(/[*_#`]/g, '').trim();
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = rate;
-      utterance.onend = () => setIsPlaying(false);
-      utterance.onerror = () => setIsPlaying(false);
-      setIsPlaying(true);
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      setIsPlaying(false);
-    }
-  };
-
-  const playAudio = (rate = speed) => {
-    stopAudio();
-
-    if (audioUrl) {
-      try {
-        const audio = new Audio(audioUrl);
-        audio.playbackRate = rate;
-        audioRef.current = audio;
-        audio.onended = () => setIsPlaying(false);
-        audio.onerror = () => {
-          fallbackSpeak(analysis.answer, rate);
-        };
-        audio.play().then(() => setIsPlaying(true)).catch(() => {
-          fallbackSpeak(analysis.answer, rate);
-        });
-      } catch {
-        fallbackSpeak(analysis.answer, rate);
-      }
-    } else if (analysis.answer) {
-      fallbackSpeak(analysis.answer, rate);
-    }
+  const startPlayback = (currentSpeed = speed) => {
+    if (!analysis.answer) return;
+    primeAudio();
+    playSpeech({
+      text: analysis.answer,
+      audioUrl,
+      rate: currentSpeed,
+      onStart: () => setIsPlaying(true),
+      onEnd: () => setIsPlaying(false)
+    });
   };
 
   const handlePlayPause = () => {
     if (isPlaying) {
       stopAudio();
+      setIsPlaying(false);
     } else {
-      playAudio(speed);
+      startPlayback(speed);
     }
   };
 
   const handleSpeedToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextSpeed = speed === 1.0 ? 1.2 : speed === 1.2 ? 1.4 : 1.0;
+    const nextSpeed = speed === 1.0 ? 1.25 : speed === 1.25 ? 1.5 : 1.0;
     setSpeed(nextSpeed);
-    if (isPlaying && audioRef.current) {
-      audioRef.current.playbackRate = nextSpeed;
+    if (isPlaying) {
+      startPlayback(nextSpeed);
     }
   };
 
+  // Instant automatic playback on mount when autoPlay is enabled
   useEffect(() => {
     if (autoPlay && !hasAutoPlayedRef.current && analysis.answer) {
       hasAutoPlayedRef.current = true;
       const timer = setTimeout(() => {
-        playAudio(1.2);
-      }, 300);
+        startPlayback(speed);
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [autoPlay, audioUrl, analysis.answer]);
+  }, [autoPlay, analysis.answer]);
 
+  // Clean up audio when card unmounts
   useEffect(() => {
     return () => {
       stopAudio();

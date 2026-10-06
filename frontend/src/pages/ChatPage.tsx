@@ -23,6 +23,7 @@ import {
 } from '../services/api';
 import type { AnalysisResponse } from '../services/api';
 import { AnswerCard } from '../components/chat/AnswerCard';
+import { primeAudio } from '../services/audioPlayer';
 import { InsightCard } from '../components/chat/InsightCard';
 import { LoadingState } from '../components/chat/LoadingState';
 import { ErrorState } from '../components/chat/ErrorState';
@@ -230,6 +231,7 @@ export function ChatPage() {
 
   // ─── Text / Voice Submit ───────────────────────────────────────────────────
   const handleSubmit = async (overrideText?: string, isVoice: boolean = false) => {
+    primeAudio(); // Prime browser audio context immediately on user action
     const questionText = typeof overrideText === 'string' ? overrideText : input;
     const trimmed = questionText.trim();
     if (!trimmed && attachments.length === 0) return;
@@ -321,21 +323,23 @@ export function ChatPage() {
           try {
             const allTargetIds = Array.from(new Set([...selectedDatasetIdsRef.current, ...newlyUploaded.map(d => d.id)]));
             const response = await analyzeWorkspace(wsId, trimmed, allTargetIds);
-            let audioUrl: string | undefined = undefined;
-            if ((isVoice || autoSpeak) && response.success && response.answer) {
-              try {
-                audioUrl = await synthesizeSpeech(response.answer);
-              } catch {}
-            }
+            
+            // Show answer immediately with autoPlayAudio enabled
             setMessages(prev => prev.map(m =>
               m.id === qAssistantMsgId ? {
                 id: m.id,
                 role: 'assistant',
                 analysis: response,
-                audioUrl,
                 autoPlayAudio: isVoice || autoSpeak
               } : m
             ));
+
+            // In background, fetch Sarvam TTS audio for replay/Listen pill
+            if ((isVoice || autoSpeak) && response.success && response.answer) {
+              synthesizeSpeech(response.answer).then(url => {
+                setMessages(prev => prev.map(m => m.id === qAssistantMsgId ? { ...m, audioUrl: url } : m));
+              }).catch(() => {});
+            }
           } catch (err: any) {
             setMessages(prev => prev.map(m =>
               m.id === qAssistantMsgId ? { id: m.id, role: 'assistant', error: err?.message || 'DATLY could not connect to the analytics engine.' } : m
@@ -378,22 +382,22 @@ export function ChatPage() {
         response = await askQuestion(fallbackDs, trimmed);
       }
 
-      let audioUrl: string | undefined = undefined;
-      if ((isVoice || autoSpeak) && response.success && response.answer) {
-        try {
-          audioUrl = await synthesizeSpeech(response.answer);
-        } catch {}
-      }
-
+      // Display the answer and trigger immediate speech playback
       setMessages(prev => prev.map(m =>
         m.id === assistantMsgId ? {
           id: m.id,
           role: 'assistant',
           analysis: response,
-          audioUrl,
           autoPlayAudio: isVoice || autoSpeak
         } : m
       ));
+
+      // Asynchronously fetch high-fidelity Sarvam audio in background without blocking speech
+      if ((isVoice || autoSpeak) && response.success && response.answer) {
+        synthesizeSpeech(response.answer).then(url => {
+          setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, audioUrl: url } : m));
+        }).catch(() => {});
+      }
     } catch (err: any) {
       console.error('[ANALYSIS] Error:', err);
       setMessages(prev => prev.map(m =>
@@ -404,6 +408,7 @@ export function ChatPage() {
 
   // ─── Voice Flow ────────────────────────────────────────────────────────────
   const handleVoiceMicClick = async () => {
+    primeAudio();
     setVoiceError(null);
 
     if (voiceState === 'LISTENING') {
@@ -493,6 +498,7 @@ export function ChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      primeAudio();
       handleSubmit();
     }
   };
