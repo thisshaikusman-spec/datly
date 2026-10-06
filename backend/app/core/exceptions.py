@@ -8,14 +8,23 @@ class DatlyException(Exception):
         self.message = message
         self.status_code = status_code
 
-def datly_exception_handler(request: Request, exc: DatlyException):
+def datly_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    if isinstance(exc, DatlyException):
+        status_code = exc.status_code
+        code = exc.code
+        message = exc.message
+    else:
+        status_code = status.HTTP_400_BAD_REQUEST
+        code = "BAD_REQUEST"
+        message = str(exc)
+
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=status_code,
         content={
             "success": False,
             "error": {
-                "code": exc.code,
-                "message": exc.message
+                "code": code,
+                "message": message
             }
         },
     )
