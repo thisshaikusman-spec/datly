@@ -8,8 +8,10 @@ import pytest
 
 from app.core.exceptions import DatlyException
 from app.models.analysis_plan import (
+    Aggregation,
     AnalysisPlan,
     JoinCondition,
+    JoinType,
     Operation,
     VisualizationType,
 )
@@ -46,12 +48,12 @@ def test_two_dataset_join(sample_frames):
                 right="customers",
                 left_on="customer_id",
                 right_on="customer_id",
-                how="inner"
+                how=JoinType.inner
             )
         ],
         group_column="customer_name",
         metric_column="revenue",
-        aggregation="sum",
+        aggregation=Aggregation.sum,
         limit=5,
         visualizations=[VisualizationType.bar]
     )
@@ -95,7 +97,7 @@ def test_join_on_mismatched_types():
                 right="customers",
                 left_on="customer_id",
                 right_on="customer_id",
-                how="inner"
+                how=JoinType.inner
             )
         ],
         metric_column="revenue"
@@ -181,6 +183,7 @@ def test_workspace_persistence_across_restart():
         )
         store1.save_dataset(meta, df, ws_id)
 
+        assert meta.alias is not None
         assert meta.alias.startswith("sales_test")
         assert meta.rows == 3
         assert meta.columns == 2
