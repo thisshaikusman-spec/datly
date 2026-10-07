@@ -65,10 +65,19 @@ export interface AnalysisResponse {
 }
 
 function resolveApiBase(): string {
-  const envUrl = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+  const envUrl = (
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env as any).NEXT_PUBLIC_API_URL ||
+    ''
+  ).trim();
 
   if (envUrl) {
     let normalized = envUrl.replace(/\/+$/, '');
+    // Upgrade http: to https: when running over https to prevent browser Mixed Content errors
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && normalized.startsWith('http://')) {
+      normalized = normalized.replace(/^http:\/\//i, 'https://');
+    }
     if (!normalized.endsWith('/api/v1')) {
       if (normalized.endsWith('/api')) {
         normalized = `${normalized}/v1`;
@@ -79,16 +88,39 @@ function resolveApiBase(): string {
     return normalized;
   }
 
-  // In production (e.g. Vercel), default to the live Render backend URL
-  if (import.meta.env.PROD) {
+  // In production (Vercel) or non-localhost environments, always default to the live Render backend URL
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '[::1]'
+  );
+
+  if (import.meta.env.PROD || !isLocalhost) {
     return 'https://datly-2v3a.onrender.com/api/v1';
   }
 
-  // In development, use relative '/api/v1' which is proxied by Vite to localhost:8000
+  // In local development, use relative '/api/v1' which is proxied by Vite to localhost:8000
   return '/api/v1';
 }
 
 const API_BASE = resolveApiBase();
+
+/**
+ * Fetch wrapper with retry logic to withstand Render free-tier cold-starts
+ * or momentary connection negotiation pauses.
+ */
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2, delayMs = 1200): Promise<Response> {
+  try {
+    const res = await fetch(url, options);
+    return res;
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, delayMs));
+      return fetchWithRetry(url, options, retries - 1, delayMs * 1.5);
+    }
+    throw err;
+  }
+}
 
 export function getStoredWorkspaceId(): string | null {
   try {
@@ -112,7 +144,7 @@ export function clearStoredWorkspaceId(): void {
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await fetchWithRetry(`${API_BASE}/health`, {}, 1, 800);
     return res.ok;
   } catch {
     return false;
@@ -120,7 +152,7 @@ export async function checkHealth(): Promise<boolean> {
 }
 
 export async function createWorkspace(): Promise<string> {
-  const res = await fetch(`${API_BASE}/workspaces`, { method: 'POST' });
+  const res = await fetchWithRetry(`${API_BASE}/workspaces`, { method: 'POST' });
   if (!res.ok) throw new Error('Failed to create workspace');
   const data = await res.json();
   setStoredWorkspaceId(data.workspace_id);
@@ -128,7 +160,7 @@ export async function createWorkspace(): Promise<string> {
 }
 
 export async function listWorkspaceDatasets(workspaceId: string): Promise<Dataset[]> {
-  const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/datasets`);
+  const res = await fetchWithRetry(`${API_BASE}/workspaces/${workspaceId}/datasets`);
   if (!res.ok) throw new Error('Failed to list workspace datasets');
   const items = await res.json();
   return items.map((item: any) => ({
@@ -145,7 +177,7 @@ export async function listWorkspaceDatasets(workspaceId: string): Promise<Datase
 }
 
 export async function deleteWorkspaceDataset(workspaceId: string, datasetId: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/datasets/${datasetId}`, {
+  const res = await fetchWithRetry(`${API_BASE}/workspaces/${workspaceId}/datasets/${datasetId}`, {
     method: 'DELETE'
   });
   if (!res.ok) throw new Error('Failed to delete dataset from workspace');
@@ -161,7 +193,7 @@ export async function uploadDataset(file: File, explicitWorkspaceId?: string): P
     headers['X-Workspace-Id'] = currentWorkspaceId;
   }
 
-  const res = await fetch(`${API_BASE}/datasets/upload`, {
+  const res = await fetchWithRetry(`${API_BASE}/datasets/upload`, {
     method: 'POST',
     headers,
     body: formData
@@ -211,7 +243,7 @@ export async function uploadDataset(file: File, explicitWorkspaceId?: string): P
 }
 
 export async function getDataset(datasetId: string): Promise<Dataset> {
-  const res = await fetch(`${API_BASE}/datasets/${datasetId}`);
+  const res = await fetchWithRetry(`${API_BASE}/datasets/${datasetId}`);
   if (!res.ok) throw new Error('Failed to get dataset');
   const data = await res.json();
   return {
@@ -227,7 +259,7 @@ export async function getDataset(datasetId: string): Promise<Dataset> {
 }
 
 export async function getSchema(datasetId: string): Promise<ColumnSchema[]> {
-  const res = await fetch(`${API_BASE}/datasets/${datasetId}/schema`);
+  const res = await fetchWithRetry(`${API_BASE}/datasets/${datasetId}/schema`);
   if (!res.ok) throw new Error('Failed to get schema');
   const data = await res.json();
   
@@ -243,7 +275,7 @@ export async function getSchema(datasetId: string): Promise<ColumnSchema[]> {
 }
 
 export async function getProfile(datasetId: string): Promise<DatasetProfile> {
-  const res = await fetch(`${API_BASE}/datasets/${datasetId}/profile`);
+  const res = await fetchWithRetry(`${API_BASE}/datasets/${datasetId}/profile`);
   if (!res.ok) throw new Error('Failed to get profile');
   const data = await res.json();
   
@@ -294,10 +326,10 @@ export async function transcribeAudio(audioBlob: Blob): Promise<TranscribeRespon
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/voice/transcribe`, {
+    res = await fetchWithRetry(`${API_BASE}/voice/transcribe`, {
       method: 'POST',
       body: formData
-    });
+    }, 1, 1500);
   } catch {
     throw new Error('Backend unavailable. Could not connect to DATLY server.');
   }
@@ -324,7 +356,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<TranscribeRespon
       throw new Error(msg);
     }
     if (res.status === 502) {
-      throw new Error('502 Bad Gateway: Backend server is not running on http://127.0.0.1:8000 or upstream error.');
+      throw new Error('502 Bad Gateway: Upstream speech engine or backend service error.');
     }
     if (res.status === 504) {
       throw new Error('504 Gateway Timeout: Speech transcription timed out.');
@@ -356,7 +388,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<TranscribeRespon
  * Returns the URL of an audio blob created from the returned wav bytes.
  */
 export async function synthesizeSpeech(text: string, languageCode?: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/voice/synthesize`, {
+  const res = await fetchWithRetry(`${API_BASE}/voice/synthesize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, language_code: languageCode })
@@ -396,7 +428,7 @@ export async function analyzeVoice(
       headers['X-Workspace-Id'] = wsId;
     }
 
-    const res = await fetch(`${API_BASE}/voice/analyze`, {
+    const res = await fetchWithRetry(`${API_BASE}/voice/analyze`, {
       method: 'POST',
       headers,
       body: formData
@@ -454,7 +486,7 @@ export async function analyzeWorkspace(
   datasetIds?: string[]
 ): Promise<AnalysisResponse> {
   try {
-    const res = await fetch(`${API_BASE}/workspaces/${workspaceId}/analyze`, {
+    const res = await fetchWithRetry(`${API_BASE}/workspaces/${workspaceId}/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -523,14 +555,14 @@ export async function askQuestion(
   }
 
   try {
-    let res = await fetch(`${API_BASE}/analysis/query`, {
+    let res = await fetchWithRetry(`${API_BASE}/analysis/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question, dataset_id: datasetId })
     });
 
     if (res.status === 404) {
-      res = await fetch(`${API_BASE}/datasets/${datasetId}/analyze`, {
+      res = await fetchWithRetry(`${API_BASE}/datasets/${datasetId}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question })

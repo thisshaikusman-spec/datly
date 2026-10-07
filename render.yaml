@@ -11,7 +11,7 @@ services:
       - key: DATA_DIR
         value: ./data
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://datly-xk2f.vercel.app,http://localhost:5173,http://localhost:3000"
       - key: NVIDIA_API_KEY
         sync: false
       - key: SARVAM_API_KEY

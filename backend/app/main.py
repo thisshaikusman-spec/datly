@@ -39,18 +39,29 @@ app.add_exception_handler(DatlyException, datly_exception_handler)
 
 raw_origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
+    "https://datly-xk2f.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
 )
 allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+if "https://datly-xk2f.vercel.app" not in allowed_origins:
+    allowed_origins.append("https://datly-xk2f.vercel.app")
 is_wildcard = "*" in allowed_origins
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if is_wildcard else allowed_origins,
     allow_credentials=not is_wildcard,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     allow_origin_regex=r"https://.*\.vercel\.app" if not is_wildcard else None,
+    expose_headers=["*"],
 )
+
+
+@app.get("/")
+@app.get("/health")
+async def root_health():
+    """Root health check for Render / monitoring services."""
+    return {"status": "ok", "service": "datly-backend", "version": "1.0.0"}
+
 
 app.include_router(api_router, prefix="/api/v1")
