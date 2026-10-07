@@ -58,6 +58,7 @@ export interface AnalysisResponse {
   visualizations?: VisualizationSpec[];
   verification?: VerificationDetails;
   error?: string;
+  language_code?: string;
   clarificationRequired?: boolean;
   clarificationPrompt?: string;
   clarificationOptions?: ClarificationOption[];
@@ -354,11 +355,11 @@ export async function transcribeAudio(audioBlob: Blob): Promise<TranscribeRespon
  * Send a text answer to the backend for Text-to-Speech synthesis.
  * Returns the URL of an audio blob created from the returned wav bytes.
  */
-export async function synthesizeSpeech(text: string): Promise<string> {
+export async function synthesizeSpeech(text: string, languageCode?: string): Promise<string> {
   const res = await fetch(`${API_BASE}/voice/synthesize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+    body: JSON.stringify({ text, language_code: languageCode })
   });
   if (!res.ok) throw new Error('Speech synthesis failed.');
   const blob = await res.blob();
@@ -426,6 +427,7 @@ export async function analyzeVoice(
     return {
       success: true,
       transcript: data.transcript,
+      language_code: data.language_code,
       answer: data.answer,
       result: data.result,
       visualization: primaryVis,
@@ -488,6 +490,7 @@ export async function analyzeWorkspace(
 
     return {
       success: true,
+      language_code: data.language_code,
       answer: data.answer,
       result: data.result,
       visualization: primaryVis,
@@ -558,6 +561,7 @@ export async function askQuestion(
     
     return {
       success: true,
+      language_code: data.language_code,
       answer: data.answer,
       result: data.result,
       visualization: primaryVis,

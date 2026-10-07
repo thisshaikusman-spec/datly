@@ -336,7 +336,7 @@ export function ChatPage() {
 
             // In background, fetch Sarvam TTS audio for replay/Listen pill
             if ((isVoice || autoSpeak) && response.success && response.answer) {
-              synthesizeSpeech(response.answer).then(url => {
+              synthesizeSpeech(response.answer, response.language_code).then(url => {
                 setMessages(prev => prev.map(m => m.id === qAssistantMsgId ? { ...m, audioUrl: url } : m));
               }).catch(() => {});
             }
@@ -394,7 +394,7 @@ export function ChatPage() {
 
       // Asynchronously fetch high-fidelity Sarvam audio in background without blocking speech
       if ((isVoice || autoSpeak) && response.success && response.answer) {
-        synthesizeSpeech(response.answer).then(url => {
+        synthesizeSpeech(response.answer, response.language_code).then(url => {
           setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, audioUrl: url } : m));
         }).catch(() => {});
       }

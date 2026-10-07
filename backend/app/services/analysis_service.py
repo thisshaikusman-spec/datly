@@ -60,8 +60,13 @@ class AnalysisService:
         logger.info(f"[RESULT] {result_summary}")
 
         # ── Answer ───────────────────────────────────────────────────────────────
+        from app.services.ai.sarvam.language import detect_language, translate_answer
+        detected_lang = detect_language(question)
+
         answer = format_answer(plan, result)
-        logger.info(f"[ANSWER] {answer!r}")
+        if detected_lang and not detected_lang.startswith("en"):
+            answer = translate_answer(answer, detected_lang)
+        logger.info(f"[ANSWER] length={len(answer)} (lang={detected_lang})")
 
         # ── Visualization ─────────────────────────────────────────────────────────
         viz_specs = VisualizationSelector.select_visualizations(plan, result, schema)
@@ -76,5 +81,6 @@ class AnalysisService:
             result=result,
             visualization=viz_spec,
             visualizations=viz_specs,
-            analysis_plan=plan
+            analysis_plan=plan,
+            language_code=detected_lang,
         )

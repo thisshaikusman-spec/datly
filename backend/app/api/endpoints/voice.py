@@ -16,6 +16,7 @@ router = APIRouter()
 
 class SynthesizeRequest(BaseModel):
     text: str
+    language_code: str | None = None
 
 @router.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):  # noqa: B008
@@ -79,7 +80,7 @@ async def transcribe(file: UploadFile = File(...)):  # noqa: B008
 
 @router.post("/synthesize")
 async def synthesize(request: SynthesizeRequest):
-    audio_bytes = synthesize_speech(request.text)
+    audio_bytes = synthesize_speech(request.text, language_code=request.language_code)
     return Response(content=audio_bytes, media_type="audio/wav")
 
 
@@ -120,7 +121,11 @@ async def analyze_voice(
                 parsed_ids = json.loads(dataset_ids) if dataset_ids.startswith("[") else [d.strip() for d in dataset_ids.split(",") if d.strip()]
             except Exception:  # noqa: BLE001
                 parsed_ids = [d.strip() for d in dataset_ids.split(",") if d.strip()]
-        analysis_response = await MultiDatasetAnalysisService.analyze_workspace(workspace_id, transcript, parsed_ids)
+        analysis_response = await MultiDatasetAnalysisService.analyze(
+            workspace_id=workspace_id,
+            question=transcript,
+            target_dataset_ids=parsed_ids,
+        )
     elif dataset_id:
         analysis_response = await AnalysisService.analyze(dataset_id, transcript)
     else:
@@ -130,7 +135,8 @@ async def analyze_voice(
     audio_id = None
     tts_available = False
     try:
-        tts_audio_bytes = synthesize_speech(analysis_response.answer)
+        tts_lang = getattr(analysis_response, "language_code", None) or stt_result.get("language_code")
+        tts_audio_bytes = synthesize_speech(analysis_response.answer, language_code=tts_lang)
         audio_id = f"audio_{uuid.uuid4().hex[:8]}"
         audio_store[audio_id] = tts_audio_bytes
         tts_available = True
@@ -158,6 +164,7 @@ async def analyze_voice(
         "dataset_id": getattr(analysis_response, "dataset_id", dataset_id),
         "workspace_id": workspace_id,
         "transcript": transcript,
+        "language_code": getattr(analysis_response, "language_code", "en-IN"),
         "answer": analysis_response.answer,
         "result": analysis_response.result,
         "visualization": vis_data,

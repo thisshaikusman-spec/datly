@@ -223,19 +223,26 @@ Please fix the error above. Propose a plan using ONLY the exact aliases and colu
 
         assert plan is not None
 
+        from app.services.ai.sarvam.language import detect_language, translate_answer
+        detected_lang = detect_language(question)
+
         # 3. Handle Clarification
         if plan.clarification_needed and plan.clarification_question:
-            logger.info(f"[CLARIFICATION] {plan.clarification_question}")
+            clarif_q = plan.clarification_question
+            if detected_lang and not detected_lang.startswith("en"):
+                clarif_q = translate_answer(clarif_q, detected_lang)
+            logger.info(f"[CLARIFICATION] {clarif_q}")
             return AnalysisResponse(
                 workspace_id=workspace_id,
                 question=question,
-                answer=plan.clarification_question,
+                answer=clarif_q,
                 result={"clarification_needed": True},
                 visualization=VisualizationSpec(type="none"),
                 visualizations=[VisualizationSpec(type="none")],
                 analysis_plan=plan,
                 clarification_needed=True,
-                clarification_question=plan.clarification_question,
+                clarification_question=clarif_q,
+                language_code=detected_lang,
             )
 
         # 4. Execute Multi-Dataset Plan
@@ -247,6 +254,8 @@ Please fix the error above. Propose a plan using ONLY the exact aliases and colu
 
         # 5. Format Answer
         answer = format_answer(plan, exec_res)
+        if detected_lang and not detected_lang.startswith("en"):
+            answer = translate_answer(answer, detected_lang)
 
         # 6. Build Visualizations
         viz_specs = VisualizationSelector.select_visualizations(plan, exec_res, None)
@@ -265,7 +274,11 @@ Please fix the error above. Propose a plan using ONLY the exact aliases and colu
             visualizations=viz_specs,
             analysis_plan=plan,
             verification=verification,
+            language_code=detected_lang,
         )
+
+    # Alias for compatibility
+    analyze_workspace = analyze
 
 
 MultiAnalysisService = MultiDatasetAnalysisService

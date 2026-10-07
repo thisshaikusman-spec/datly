@@ -97,11 +97,13 @@ def transcribe_audio(
             data_lang = getattr(response.data, 'language_code', None)
             if isinstance(data_lang, str) and data_lang:
                 lang = data_lang
-        if not isinstance(lang, str) or not lang:
-            lang = "en-IN"
+        from app.services.ai.sarvam.language import detect_language
+        detected = detect_language(transcript_text)
+        if not isinstance(lang, str) or not lang or lang == "unknown" or detected != "en-IN":
+            lang = detected or lang or "en-IN"
 
         logger.info(
-            f"[SARVAM_STT] Transcription succeeded: '{transcript_text}' (language={lang})"
+            f"[SARVAM_STT] Transcription succeeded (language={lang}, length={len(transcript_text)})"
         )
 
         return {

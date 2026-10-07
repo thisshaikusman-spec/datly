@@ -17,14 +17,16 @@ export function AnswerCard({ analysis, audioUrl, autoPlay, onClarify }: AnswerCa
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState<number>(1.25); // Fast, crisp default (1.25x)
   const hasAutoPlayedRef = useRef(false);
+  const playedAudioUrlRef = useRef(false);
 
-  const startPlayback = (currentSpeed = speed) => {
+  const startPlayback = (currentSpeed = speed, targetAudioUrl = audioUrl) => {
     if (!analysis.answer) return;
     primeAudio();
     playSpeech({
       text: analysis.answer,
-      audioUrl,
+      audioUrl: targetAudioUrl,
       rate: currentSpeed,
+      languageCode: analysis.language_code,
       onStart: () => setIsPlaying(true),
       onEnd: () => setIsPlaying(false)
     });
@@ -35,7 +37,7 @@ export function AnswerCard({ analysis, audioUrl, autoPlay, onClarify }: AnswerCa
       stopAudio();
       setIsPlaying(false);
     } else {
-      startPlayback(speed);
+      startPlayback(speed, audioUrl);
     }
   };
 
@@ -44,7 +46,7 @@ export function AnswerCard({ analysis, audioUrl, autoPlay, onClarify }: AnswerCa
     const nextSpeed = speed === 1.0 ? 1.25 : speed === 1.25 ? 1.5 : 1.0;
     setSpeed(nextSpeed);
     if (isPlaying) {
-      startPlayback(nextSpeed);
+      startPlayback(nextSpeed, audioUrl);
     }
   };
 
@@ -53,11 +55,21 @@ export function AnswerCard({ analysis, audioUrl, autoPlay, onClarify }: AnswerCa
     if (autoPlay && !hasAutoPlayedRef.current && analysis.answer) {
       hasAutoPlayedRef.current = true;
       const timer = setTimeout(() => {
-        startPlayback(speed);
-      }, 100);
+        startPlayback(speed, audioUrl);
+      }, 80);
       return () => clearTimeout(timer);
     }
   }, [autoPlay, analysis.answer]);
+
+  // When backend TTS audio arrives, play if speech hasn't already started
+  useEffect(() => {
+    if (autoPlay && audioUrl && !playedAudioUrlRef.current) {
+      playedAudioUrlRef.current = true;
+      if (!isPlaying) {
+        startPlayback(speed, audioUrl);
+      }
+    }
+  }, [audioUrl, autoPlay, isPlaying]);
 
   // Clean up audio when card unmounts
   useEffect(() => {

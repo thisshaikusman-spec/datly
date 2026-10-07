@@ -67,6 +67,7 @@ class AnalysisResponse(BaseModel):
     verification: VerificationBlock | None = None
     clarification_needed: bool = False
     clarification_question: str | None = None
+    language_code: str | None = "en-IN"
 
     @model_validator(mode="after")
     def sync_visualizations(self) -> "AnalysisResponse":

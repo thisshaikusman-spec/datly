@@ -4,10 +4,11 @@ import logging
 from app.core.config import settings
 from app.core.exceptions import DatlyException
 from app.services.ai.sarvam.client import sarvam_client
+from app.services.ai.sarvam.language import detect_language
 
 logger = logging.getLogger("datly.ai.sarvam.tts")
 
-def synthesize_speech(text: str) -> bytes:
+def synthesize_speech(text: str, language_code: str | None = None) -> bytes:
     if not sarvam_client.client:
         raise DatlyException(
             code="SARVAM_NOT_CONFIGURED",
@@ -29,10 +30,13 @@ def synthesize_speech(text: str) -> bytes:
             status_code=400
         )
         
+    # Auto-detect language if not explicitly provided
+    resolved_lang = language_code or detect_language(text) or settings.SARVAM_TTS_LANGUAGE
+
     try:
         response = sarvam_client.client.text_to_speech.convert(
             text=text,
-            language_code=settings.SARVAM_TTS_LANGUAGE,
+            language_code=resolved_lang,
             speaker=settings.SARVAM_TTS_SPEAKER,
             speech_sample_rate=settings.SARVAM_TTS_SAMPLE_RATE,
             model=settings.SARVAM_TTS_MODEL,
