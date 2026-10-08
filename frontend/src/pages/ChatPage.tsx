@@ -372,6 +372,16 @@ export function ChatPage() {
     }
 
     try {
+      if (!wsId && datasetsRef.current.length > 0) {
+        try {
+          wsId = await createWorkspace();
+          setWorkspaceId(wsId);
+          setStoredWorkspaceId(wsId);
+        } catch (e) {
+          console.warn('Could not lazily create workspace:', e);
+        }
+      }
+
       const activeTargets = selectedDatasetIdsRef.current.length > 0 ? selectedDatasetIdsRef.current : datasetsRef.current.map(d => d.id);
       let response: AnalysisResponse;
 

@@ -14,8 +14,8 @@ def datly_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         code = exc.code
         message = exc.message
     else:
-        status_code = status.HTTP_400_BAD_REQUEST
-        code = "BAD_REQUEST"
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        code = "INTERNAL_ERROR"
         message = str(exc)
 
     return JSONResponse(

@@ -106,14 +106,25 @@ function resolveApiBase(): string {
 const API_BASE = resolveApiBase();
 
 /**
- * Fetch wrapper with retry logic to withstand Render free-tier cold-starts
- * or momentary connection negotiation pauses.
+ * Fetch wrapper with dual-route fallback and retry logic to withstand
+ * Render free-tier cold-starts, CORS/firewall restrictions, and momentary connection pauses.
  */
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2, delayMs = 1200): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, delayMs = 1500): Promise<Response> {
   try {
     const res = await fetch(url, options);
     return res;
   } catch (err) {
+    // If direct cross-origin request failed and running on Vercel,
+    // seamlessly attempt the same-origin reverse-proxy route /api/...
+    if (typeof window !== 'undefined' && !url.startsWith('/') && window.location.hostname.endsWith('vercel.app')) {
+      try {
+        const relativeUrl = url.replace(/^https?:\/\/[^\/]+/, '');
+        const proxyRes = await fetch(relativeUrl, options);
+        return proxyRes;
+      } catch {
+        // Fall back to retry loop below
+      }
+    }
     if (retries > 0) {
       await new Promise(r => setTimeout(r, delayMs));
       return fetchWithRetry(url, options, retries - 1, delayMs * 1.5);
@@ -329,7 +340,7 @@ export async function transcribeAudio(audioBlob: Blob): Promise<TranscribeRespon
     res = await fetchWithRetry(`${API_BASE}/voice/transcribe`, {
       method: 'POST',
       body: formData
-    }, 1, 1500);
+    }, 3, 1500);
   } catch {
     throw new Error('Backend unavailable. Could not connect to DATLY server.');
   }

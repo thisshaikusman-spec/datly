@@ -36,6 +36,7 @@ app = FastAPI(
 )
 
 app.add_exception_handler(DatlyException, datly_exception_handler)
+app.add_exception_handler(Exception, datly_exception_handler)
 
 raw_origins = os.getenv(
     "CORS_ORIGINS",
