@@ -8,7 +8,7 @@ import { LogoIntro } from '../components/LogoIntro';
 import { RotateCcw } from 'lucide-react';
 
 export function Landing() {
-  const [introDone, setIntroDone] = useState(false);
+  const [introDone, setIntroDone] = useState(true);
   const [triggerReplay, setTriggerReplay] = useState<{ fn: () => void } | null>(null);
 
   const handleReplay = () => {

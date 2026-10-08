@@ -1,8 +1,24 @@
 import { useEffect, useState } from 'react';
 
-export function DatlyLogo({ animate = false, reducedMotion = false, onAnimationComplete }: { animate?: boolean, reducedMotion?: boolean, onAnimationComplete?: () => void }) {
-  const [pixelsVisible, setPixelsVisible] = useState(false);
-  const [wordmarkVisible, setWordmarkVisible] = useState(false);
+export interface DatlyLogoProps {
+  animate?: boolean;
+  reducedMotion?: boolean;
+  onAnimationComplete?: () => void;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+export function DatlyLogo({
+  animate = false,
+  reducedMotion = false,
+  onAnimationComplete,
+  size = 'lg',
+  className = ''
+}: DatlyLogoProps) {
+  // If static or reduced motion, pixels and wordmark are visible immediately
+  const isImmediatelyVisible = !animate || reducedMotion;
+  const [pixelsVisible, setPixelsVisible] = useState(isImmediatelyVisible);
+  const [wordmarkVisible, setWordmarkVisible] = useState(isImmediatelyVisible);
 
   useEffect(() => {
     if (reducedMotion || !animate) {
@@ -24,14 +40,16 @@ export function DatlyLogo({ animate = false, reducedMotion = false, onAnimationC
 
     // total time ~2500ms
     const completeTimer = setTimeout(() => {
-      // completed
+      if (onAnimationComplete) {
+        onAnimationComplete();
+      }
     }, 2500);
 
     return () => {
       clearTimeout(wordmarkTimer);
       clearTimeout(completeTimer);
     };
-  }, [animate, reducedMotion]);
+  }, [animate, reducedMotion, onAnimationComplete]);
 
   // order of animation for pixels (0 to 13)
   const pixelPositions = [
@@ -61,9 +79,27 @@ export function DatlyLogo({ animate = false, reducedMotion = false, onAnimationC
     return '#f97316';
   };
 
+  const svgSizeClass = size === 'sm'
+    ? 'w-6 h-auto sm:w-7'
+    : size === 'md'
+    ? 'w-9 h-auto sm:w-10'
+    : 'w-[3rem] sm:w-[4rem] md:w-[5rem] h-auto';
+
+  const textSizeClass = size === 'sm'
+    ? 'text-xl sm:text-2xl font-semibold tracking-tight'
+    : size === 'md'
+    ? 'text-3xl sm:text-4xl font-semibold tracking-tight'
+    : 'text-5xl sm:text-6xl md:text-7xl font-medium tracking-tighter';
+
+  const gapClass = size === 'sm' ? 'gap-2 sm:gap-2.5' : size === 'md' ? 'gap-3' : 'gap-4';
+
   return (
-    <div className="flex items-center gap-4">
-      <svg viewBox="0 0 144 174" className="w-[3rem] sm:w-[4rem] md:w-[5rem] h-auto shrink-0 overflow-visible">
+    <div className={`flex items-center select-none ${gapClass} ${className}`}>
+      <svg
+        viewBox="0 0 144 174"
+        className={`${svgSizeClass} shrink-0 overflow-visible`}
+        aria-hidden="true"
+      >
         {pixelPositions.map((pos, i) => {
           const v = (pos.x + (5 - pos.y)) / 9;
           const heatmapOpacity = 0.35 + (v * 0.65);
@@ -88,7 +124,7 @@ export function DatlyLogo({ animate = false, reducedMotion = false, onAnimationC
           );
         })}
       </svg>
-      <div className="font-mono text-5xl sm:text-6xl md:text-7xl font-medium tracking-tighter flex" style={{ color: '#f3f2ee' }}>
+      <div className={`font-mono flex leading-none ${textSizeClass}`} style={{ color: '#f3f2ee' }}>
         {['d', 'a', 't', 'l', 'y'].map((char, i) => (
           <span
             key={i}

@@ -65,8 +65,8 @@ export function UploadPage() {
 
       {/* Navbar */}
       <nav className="w-full flex items-center justify-between py-6 px-6 md:px-12 max-w-7xl mx-auto z-10 relative shrink-0">
-        <Link to="/" className="flex items-center scale-[0.35] origin-left -ml-4 md:ml-0 hover:opacity-80 transition-opacity">
-          <DatlyLogo reducedMotion={true} />
+        <Link to="/" className="flex items-center hover:opacity-85 transition-opacity" aria-label="DATLY Home">
+          <DatlyLogo size="sm" reducedMotion={true} />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm text-white/60 font-medium absolute left-1/2 -translate-x-1/2">
           <Link to="/" className="hover:text-white transition-colors">Home</Link>

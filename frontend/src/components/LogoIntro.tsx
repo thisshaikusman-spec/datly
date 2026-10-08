@@ -42,7 +42,7 @@ export function LogoIntro({ onComplete, onReplayReady }: { onComplete: () => voi
   return (
     <div className={`fixed inset-0 w-screen h-screen flex flex-col items-center justify-center transition-opacity duration-1000 ${introFinished ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
       <div className="flex items-center justify-center">
-        <DatlyLogo key={key} animate={!introFinished} reducedMotion={reducedMotion} />
+        <DatlyLogo key={key} size="lg" animate={!introFinished} reducedMotion={reducedMotion} />
       </div>
     </div>
   );

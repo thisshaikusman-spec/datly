@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 174" fill="none">
+  <!-- DATLY lowercase 'd' heatmap grid mark -->
+  <g id="datly-mark">
+    <!-- Col 4 (stem) -->
+    <rect x="120" y="0" width="24" height="24" rx="6" fill="#f97316" />
+    <rect x="120" y="30" width="24" height="24" rx="6" fill="#ec4899" />
+    <rect x="120" y="60" width="24" height="24" rx="6" fill="#ec4899" />
+    <rect x="120" y="90" width="24" height="24" rx="6" fill="#8b5cf6" />
+    <rect x="120" y="120" width="24" height="24" rx="6" fill="#8b5cf6" />
+    <rect x="120" y="150" width="24" height="24" rx="6" fill="#8b5cf6" />
+    <!-- Row 5 (bottom curve) -->
+    <rect x="90" y="150" width="24" height="24" rx="6" fill="#8b5cf6" />
+    <rect x="60" y="150" width="24" height="24" rx="6" fill="#3b82f6" />
+    <rect x="30" y="150" width="24" height="24" rx="6" fill="#3b82f6" />
+    <!-- Col 0 (left curve) -->
+    <rect x="0" y="120" width="24" height="24" rx="6" fill="#3b82f6" />
+    <rect x="0" y="90" width="24" height="24" rx="6" fill="#3b82f6" />
+    <!-- Row 2 (top curve) -->
+    <rect x="30" y="60" width="24" height="24" rx="6" fill="#8b5cf6" />
+    <rect x="60" y="60" width="24" height="24" rx="6" fill="#8b5cf6" />
+    <rect x="90" y="60" width="24" height="24" rx="6" fill="#ec4899" />
+  </g>
+  <!-- Wordmark -->
+  <text x="180" y="132" font-family="'JetBrains Mono', monospace, -apple-system, sans-serif" font-size="112" font-weight="600" fill="#f3f2ee" letter-spacing="-0.04em">datly</text>
+</svg>
